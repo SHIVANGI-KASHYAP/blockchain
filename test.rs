@@ -1,42 +1,41 @@
-// src/wallet.rs
-#[derive(Clone)]
-pub struct TokenWallet {
-    pub balance: u64,
-    pub owner: String,
-    pub token_id: String,
-}
+// src/tests.rs
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::wallet::TokenWallet;
 
-impl TokenWallet {
-    /// Creates a new token wallet with the specified owner and token_id
-    pub fn new(owner: String, token_id: String) -> Self {
-        TokenWallet {
-            balance: 0,
-            owner,
-            token_id,
-        }
+    #[test]
+    fn test_create_wallet() {
+        let mut contract = TokenWalletContract::default();
+        let wallet = contract.create_wallet("Alice".to_string(), "TokenA".to_string());
+        assert_eq!(wallet.balance_of(), 0);
+        assert_eq!(wallet.owner, "Alice");
     }
 
-    /// Send tokens to another wallet
-    pub fn send_tokens(&mut self, amount: u64, recipient: &mut TokenWallet) -> Result<(), String> {
-        if self.balance >= amount {
-            if self.owner == recipient.owner {
-                return Err(String::from("Cannot send tokens to the same wallet"));
-            }
-            self.balance -= amount;
-            recipient.receive_tokens(amount);
-            Ok(())
-        } else {
-            Err(String::from("Insufficient balance"))
-        }
+    #[test]
+    fn test_send_and_receive_tokens() {
+        let mut contract = TokenWalletContract::default();
+        let alice_wallet = contract.create_wallet("Alice".to_string(), "TokenA".to_string());
+        let bob_wallet = contract.create_wallet("Bob".to_string(), "TokenA".to_string());
+
+        let mut alice_wallet = contract.get_wallet_by_owner("Alice").unwrap().clone();
+        alice_wallet.receive_tokens(100);
+
+        let mut bob_wallet = contract.get_wallet_by_owner("Bob").unwrap().clone();
+
+        assert!(alice_wallet.send_tokens(50, &mut bob_wallet).is_ok());
+        assert_eq!(alice_wallet.balance_of(), 50);
+        assert_eq!(bob_wallet.balance_of(), 50);
     }
 
-    /// Receive tokens in the wallet
-    pub fn receive_tokens(&mut self, amount: u64) {
-        self.balance += amount;
-    }
+    #[test]
+    fn test_insufficient_balance() {
+        let mut contract = TokenWalletContract::default();
+        let alice_wallet = contract.create_wallet("Alice".to_string(), "TokenA".to_string());
 
-    /// Display current balance of tokens
-    pub fn balance_of(&self) -> u64 {
-        self.balance
+        let mut alice_wallet = contract.get_wallet_by_owner("Alice").unwrap().clone();
+        let mut bob_wallet = contract.create_wallet("Bob".to_string(), "TokenA".to_string());
+
+        assert_eq!(alice_wallet.send_tokens(50, &mut bob_wallet), Err("Insufficient balance".to_string()));
     }
 }
